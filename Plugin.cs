@@ -24,21 +24,14 @@ namespace MapPackLoader
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
             using ZipArchive mapPackZip = ZipFile.OpenRead(Path.Combine(Paths.PluginPath, "mappack.zip"));
             string mapsFolderPath = "";
-            if (Directory.Exists("Maps") && File.Exists(Path.Combine(pluginsFolder, "MapMaker.dll")))
+            List<string> mapLoaderDLLPath = RecursivelySearchDirectoryForFile(pluginsFolder, "MapMaker.dll");
+            //Directory.GetFiles(pluginsFolder, "MapMaker.dll", SearchOption.AllDirectories);
+            if (mapLoaderDLLPath.Count != 1) // if we didn't find anything or found multiple copies of the DLL
             {
-                mapsFolderPath = Path.Combine(pluginsFolder, "Maps");
+                throw new Exception("Found " + mapLoaderDLLPath.Count.ToString() + " copies of mapmaker in the plugins folder. Make sure you have exactly 1 installed."
+                    + " Map pack not extracted.");
             }
-            else
-            {
-                List<string> mapLoaderDLLPath = RecursivelySearchDirectoryForFile(pluginsFolder, "MapMaker.dll");
-                //Directory.GetFiles(pluginsFolder, "MapMaker.dll", SearchOption.AllDirectories);
-                if (mapLoaderDLLPath.Count != 1) // if we didn't find anything or found multiple copies of the DLL
-                {
-                    throw new Exception("Found " + mapLoaderDLLPath.Count.ToString() + " copies of mapmaker in the plugins folder. Make sure you have exactly 1 installed."
-                        + " Map pack not extracted.");
-                }
-                mapsFolderPath = Path.Combine(mapLoaderDLLPath[0], "Maps");
-            }
+            mapsFolderPath = Path.Combine(mapLoaderDLLPath[0], "Maps");
             Logger.LogInfo("maps folder: " + mapsFolderPath);
 
             if (!Directory.Exists(mapsFolderPath)) { Directory.CreateDirectory(mapsFolderPath); }
@@ -69,7 +62,7 @@ namespace MapPackLoader
             for (int i = 0; i < mapPackZip.Entries.Count; i++)
             {
                 // remember that maps are themselves zip files
-                using ZipArchive mapZip = new ZipArchive(mapPackZip.Entries[i].Open());
+                /*using*/ ZipArchive mapZip = new ZipArchive(mapPackZip.Entries[i].Open());
                 ZipArchiveEntry zippedMetaData = null;
                 zippedMetaData = mapZip.GetEntry("MetaData.json");
                 if (zippedMetaData == null)
@@ -122,6 +115,7 @@ namespace MapPackLoader
                 }
                 else
                 {
+                    mapZip.Dispose();
                     MoveMapToNewFolder(mapsFolderPath, currentFilePath);
                 }
             }
@@ -146,7 +140,7 @@ namespace MapPackLoader
 
         public void MoveMapToNewFolder(string mapsFolder, string mapPath)
         {
-            string dirToMoveTo = Path.Combine(Directory.GetParent(mapsFolder).FullName, "map pack loader - maps moved when setting up map pack " + startTimeString);
+            string dirToMoveTo = Path.Combine(Directory.GetParent(mapsFolder).FullName, "maps moved when setting up map pack " + startTimeString);
             if (!Directory.Exists(dirToMoveTo))
             {
                 Directory.CreateDirectory(dirToMoveTo);
