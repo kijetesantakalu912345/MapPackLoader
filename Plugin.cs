@@ -54,7 +54,7 @@ namespace MapPackLoader
             List<int> folderMapIDs = new List<int>();
             List<uint> folderMapVersions = new List<uint>();*/
 
-            Dictionary<int, ZippedMap> packMaps = new Dictionary<int, ZippedMap>(); // Dictionary<mapID, ZippedMap>
+            Dictionary<string, ZippedMap> packMaps = new Dictionary<string, ZippedMap>(); // Dictionary<mapID, ZippedMap>
             //Dictionary<int, ZippedMap> validFolderMaps = new Dictionary<int, ZippedMap>(); // Dictionary<mapID, ZippedMap>
             //List<string> pathsOfFolderMapsToMove = new List<string>();
 
@@ -71,10 +71,9 @@ namespace MapPackLoader
                 }
                 string metadataJsonText = new StreamReader(zippedMetaData.Open()).ReadToEnd();
                 Dictionary<string, object> metadataJsonDict = MiniJSON.Json.Deserialize(metadataJsonText) as Dictionary<string, object>;
-                // i don't think UUIDs work like this (aren't they 128 bit?) but it's what mapmaker calls them
-                int mapID = Convert.ToInt32(metadataJsonDict["MapUUID"]);
+                string mapName = metadataJsonDict["MapName"].ToString();
                 uint mapVersion = Convert.ToUInt32(metadataJsonDict["MapVersion"]);
-                packMaps.Add(mapID, new ZippedMap(mapID, mapVersion, mapZip));
+                packMaps.Add(mapName, new ZippedMap(mapName, mapVersion, mapZip));
             }
 
 
@@ -98,20 +97,20 @@ namespace MapPackLoader
                 }
                 string metadataJsonText = new StreamReader(zippedMetaData.Open()).ReadToEnd();
                 Dictionary<string, object> metadataJsonDict = MiniJSON.Json.Deserialize(metadataJsonText) as Dictionary<string, object>;
-                // again i don't think UUIDs work like that but whatever fine
-                int mapID = Convert.ToInt32(metadataJsonDict["MapUUID"]);
+                string mapName = metadataJsonDict["MapName"].ToString();
                 uint mapVersion = Convert.ToUInt32(metadataJsonDict["MapVersion"]);
 
                 // ALRIGHT, now we check if this map exists in the mappack and if so, if it's a different version.
-                if (packMaps.ContainsKey(mapID))
+                if (packMaps.ContainsKey(mapName))
                 {
-                    if (packMaps[mapID].version != mapVersion)
+                    if (packMaps[mapName].version != mapVersion)
                     {
                         mapZip.Dispose();
                         MoveMapToNewFolder(mapsFolderPath, currentFilePath);
-                        packMaps[mapID].zip.ExtractToDirectory(mapsFolderPath);
+                        packMaps[mapName].zip.ExtractToDirectory(mapsFolderPath);
                     }
-                    packMaps.Remove(mapID);
+                    packMaps[mapName].zip.Dispose();
+                    packMaps.Remove(mapName);
                 }
                 else
                 {
@@ -124,6 +123,7 @@ namespace MapPackLoader
             foreach (ZippedMap packMap in packMaps.Values)
             {
                 packMap.zip.ExtractToDirectory(mapsFolderPath);
+                packMap.zip.Dispose();
             }
             
 
@@ -171,13 +171,13 @@ namespace MapPackLoader
 
     public struct ZippedMap
     {
-        public int ID;
+        public string name;
         public uint version;
         public ZipArchive zip;
 
-        public ZippedMap(int ID, uint version, ZipArchive zip)
+        public ZippedMap(string name, uint version, ZipArchive zip)
         {
-            this.ID = ID;
+            this.name = name;
             this.version = version;
             this.zip = zip;
         }
