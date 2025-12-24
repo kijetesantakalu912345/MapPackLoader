@@ -50,7 +50,7 @@ namespace MapPackLoader
             }
             // maybe there should be a metadata file like a json or something for this but im trying to keep this as simple as possible for the user and im not making a UI for
             // creating map packs. i just want map packs to be a zip of maps that are pasted into the maps folder if needed.
-            //CheckAndUpdateOldMaps()
+            CheckAndUpdateOldMaps(mapPackZip, mapsFolderPath);
 
         }
 
@@ -101,7 +101,6 @@ namespace MapPackLoader
                     // we'll just move invalid maps that are inside the maps folder.
                     Logger.LogWarning("Invalid map \"" + mapPackZip.Entries[i].FullName + "\" in your maps folder has no MetaData.json, moving...");
                     MoveMapToNewFolder(mapsFolderPath, currentFilePath);
-                    //pathsOfFolderMapsToMove.Add(currentFilePath);
                     continue;
                 }
                 string metadataJsonText = new StreamReader(zippedMetaData.Open()).ReadToEnd();
@@ -115,6 +114,7 @@ namespace MapPackLoader
                 {
                     if (packMaps[mapID].version != mapVersion)
                     {
+                        mapZip.Dispose();
                         MoveMapToNewFolder(mapsFolderPath, currentFilePath);
                         packMaps[mapID].zip.ExtractToDirectory(mapsFolderPath);
                     }
@@ -142,8 +142,6 @@ namespace MapPackLoader
             // if there's a mismatch, move the old map into a separate folder and paste the zip's version of the map into the folder.
             // - check for a *mismatch*, NOT for the version specifically being higher.
             // otherwise, if they do match, then leave the file as is.
-            // MAYBE JUST BACKUP THE WHOLE MAPS FOLDER WHEN THERE ARE NEW UPDATES? ehh, idk though. I'd prefer to avoid that if possible.
-
         }
 
         public void MoveMapToNewFolder(string mapsFolder, string mapPath)
@@ -153,7 +151,8 @@ namespace MapPackLoader
             {
                 Directory.CreateDirectory(dirToMoveTo);
             }
-            File.Move(mapPath, Path.Combine(dirToMoveTo + Path.GetFileName(mapPath)));
+            Logger.LogInfo(Path.Combine(dirToMoveTo + "/" + Path.GetFileName(mapPath)));
+            File.Move(mapPath, Path.Combine(dirToMoveTo + "/" + Path.GetFileName(mapPath)));
         }
 
         public static List<string> RecursivelySearchDirectoryForFile(string searchPath, string containedFileName)
@@ -164,7 +163,7 @@ namespace MapPackLoader
             {
                 if (Path.GetFileName(filesInDir[i]).Contains(containedFileName))
                 {
-                    foundFiles.Add(filesInDir[i]);
+                    foundFiles.Add(Path.GetDirectoryName(filesInDir[i]));
                 }
             }
             string[] directories = Directory.GetDirectories(searchPath);
