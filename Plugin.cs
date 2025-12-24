@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using MiniJSON;
 using BepInEx.Logging;
+using System.Text;
 
 
 namespace MapPackLoader
@@ -14,6 +15,7 @@ namespace MapPackLoader
     public class Plugin : BaseUnityPlugin
     {
         //private readonly Harmony harmony = new Harmony("com.kijetesantakalu.MapPackLoader");
+        public static string startTimeString = DateTime.Now.ToString("yyyy-MMM-dd hhtt ss.fff");
         public void Awake()
         {
             string pluginsFolder = Path.Combine(Directory.GetCurrentDirectory(), "BepInEx/Plugins");
@@ -60,11 +62,11 @@ namespace MapPackLoader
             List<uint> folderMapVersions = new List<uint>();*/
 
             Dictionary<int, ZippedMap> packMaps = new Dictionary<int, ZippedMap>(); // Dictionary<mapID, ZippedMap>
-            Dictionary<int, ZippedMap> validFolderMaps = new Dictionary<int, ZippedMap>(); // Dictionary<mapID, ZippedMap>
-            List<string> pathsOfFolderMapsToMove = new List<string>();
+            //Dictionary<int, ZippedMap> validFolderMaps = new Dictionary<int, ZippedMap>(); // Dictionary<mapID, ZippedMap>
+            //List<string> pathsOfFolderMapsToMove = new List<string>();
 
-            // all of the maps in the mappack zip.
-            for (int i = 0; i < mapPackZip.Entries.Count; i++) 
+
+            for (int i = 0; i < mapPackZip.Entries.Count; i++)
             {
                 // remember that maps are themselves zip files
                 using ZipArchive mapZip = new ZipArchive(mapPackZip.Entries[i].Open());
@@ -76,51 +78,60 @@ namespace MapPackLoader
                 }
                 string metadataJsonText = new StreamReader(zippedMetaData.Open()).ReadToEnd();
                 Dictionary<string, object> metadataJsonDict = MiniJSON.Json.Deserialize(metadataJsonText) as Dictionary<string, object>;
-
                 // i don't think UUIDs work like this (aren't they 128 bit?) but it's what mapmaker calls them
                 int mapID = Convert.ToInt32(metadataJsonDict["MapUUID"]);
                 uint mapVersion = Convert.ToUInt32(metadataJsonDict["MapVersion"]);
                 packMaps.Add(mapID, new ZippedMap(mapID, mapVersion, mapZip));
             }
 
-            // now we read all of the maps in the folder.
+
             // this feels kinda spaghetti.
             for (int i = 0; i < Directory.GetFiles(mapsFolderPath).Length; i++)
             {
-                try
+                string currentFilePath = Directory.GetFiles(mapsFolderPath)[i];
+                if (Path.GetExtension(currentFilePath) != ".zip")
                 {
-                    string currentFilePath = Directory.GetFiles(mapsFolderPath)[i];
-                    if (Path.GetExtension(currentFilePath) != ".zip")
-                    {
-                        continue;
-                    }
-                    using ZipArchive mapZip = new ZipArchive(File.OpenRead(currentFilePath));
-                    ZipArchiveEntry zippedMetaData = null;
-                    zippedMetaData = mapZip.GetEntry("MetaData.json");
-                    if (zippedMetaData == null)
-                    {
-                        // we'll just move invalid maps that are inside the maps folder.
-                        Logger.LogWarning("Invalid map \"" + mapPackZip.Entries[i].FullName + "\" in your maps folder has no MetaData.json");
-                        pathsOfFolderMapsToMove.Add(currentFilePath);
-                        continue;
-                    }
-                    string metadataJsonText = new StreamReader(zippedMetaData.Open()).ReadToEnd();
-                    Dictionary<string, object> metadataJsonDict = MiniJSON.Json.Deserialize(metadataJsonText) as Dictionary<string, object>;
-                    // again i don't think UUIDs work like that but whatever fine
-                    int mapID = Convert.ToInt32(metadataJsonDict["MapUUID"]);
-                    uint mapVersion = Convert.ToUInt32(metadataJsonDict["MapVersion"]);
-                    validFolderMaps.Add(mapID, new ZippedMap(mapID, mapVersion, currentFilePath));
+                    continue;
                 }
-                catch (Exception ex)
+                using ZipArchive mapZip = new ZipArchive(File.OpenRead(currentFilePath));
+                ZipArchiveEntry zippedMetaData = null;
+                zippedMetaData = mapZip.GetEntry("MetaData.json");
+                if (zippedMetaData == null)
                 {
-                    Logger.LogError("Encountered an error while trying to read maps in the maps folder. This map will be moved. Error message: \n" + ex.Message);
-                    pathsOfFolderMapsToMove.Add(Directory.GetFiles(mapsFolderPath)[i]);
+                    // we'll just move invalid maps that are inside the maps folder.
+                    Logger.LogWarning("Invalid map \"" + mapPackZip.Entries[i].FullName + "\" in your maps folder has no MetaData.json, moving...");
+                    MoveMapToNewFolder(mapsFolderPath, currentFilePath);
+                    //pathsOfFolderMapsToMove.Add(currentFilePath);
+                    continue;
+                }
+                string metadataJsonText = new StreamReader(zippedMetaData.Open()).ReadToEnd();
+                Dictionary<string, object> metadataJsonDict = MiniJSON.Json.Deserialize(metadataJsonText) as Dictionary<string, object>;
+                // again i don't think UUIDs work like that but whatever fine
+                int mapID = Convert.ToInt32(metadataJsonDict["MapUUID"]);
+                uint mapVersion = Convert.ToUInt32(metadataJsonDict["MapVersion"]);
+
+                // ALRIGHT, now we check if this map exists in the mappack and if so, if it's a different version.
+                if (packMaps.ContainsKey(mapID))
+                {
+                    if (packMaps[mapID].version != mapVersion)
+                    {
+                        MoveMapToNewFolder(mapsFolderPath, currentFilePath);
+                        packMaps[mapID].zip.ExtractToDirectory(mapsFolderPath);
+                    }
+                    packMaps.Remove(mapID);
+                }
+                else
+                {
+                    MoveMapToNewFolder(mapsFolderPath, currentFilePath);
                 }
             }
 
-            // ok we *finally* have the map data.
-
-
+            // ok so now all outdated maps should be extracted and any maps not in the pack should have been moved. now we just need to extract any remaining maps in the pack.
+            foreach (ZippedMap packMap in packMaps.Values)
+            {
+                packMap.zip.ExtractToDirectory(mapsFolderPath);
+            }
+            
 
             // get all map "UU"IDs
             // compare all map "UU"IDs
@@ -133,6 +144,16 @@ namespace MapPackLoader
             // otherwise, if they do match, then leave the file as is.
             // MAYBE JUST BACKUP THE WHOLE MAPS FOLDER WHEN THERE ARE NEW UPDATES? ehh, idk though. I'd prefer to avoid that if possible.
 
+        }
+
+        public void MoveMapToNewFolder(string mapsFolder, string mapPath)
+        {
+            string dirToMoveTo = Path.Combine(Directory.GetParent(mapsFolder).FullName, "map pack loader - maps moved when setting up map pack " + startTimeString);
+            if (!Directory.Exists(dirToMoveTo))
+            {
+                Directory.CreateDirectory(dirToMoveTo);
+            }
+            File.Move(mapPath, Path.Combine(dirToMoveTo + Path.GetFileName(mapPath)));
         }
 
         public static List<string> RecursivelySearchDirectoryForFile(string searchPath, string containedFileName)
@@ -159,8 +180,7 @@ namespace MapPackLoader
     {
         public int ID;
         public uint version;
-        public ZipArchive zip; // this or path will be null.
-        public string path;
+        public ZipArchive zip;
 
         public ZippedMap(int ID, uint version, ZipArchive zip)
         {
@@ -168,12 +188,12 @@ namespace MapPackLoader
             this.version = version;
             this.zip = zip;
         }
-        public ZippedMap(int ID, uint version, /*ZipArchive zip, */string path)
-        {
+        //public ZippedMap(int ID, uint version, /*ZipArchive zip, */string path)
+        /*{
             this.ID = ID;
             this.version = version;
             //this.zip = zip;
             this.path = path;
-        }
+        }*/
     }
 }
