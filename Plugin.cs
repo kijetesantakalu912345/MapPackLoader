@@ -44,7 +44,6 @@ namespace MapPackLoader
             // maybe there should be a metadata file like a json or something for this but im trying to keep this as simple as possible for the user and im not making a UI for
             // creating map packs. i just want map packs to be a zip of maps that are pasted into the maps folder if needed.
             CheckAndUpdateOldMaps(mapPackZip, mapsFolderPath);
-
         }
 
         public void CheckAndUpdateOldMaps(ZipArchive mapPackZip, string mapsFolderPath)
@@ -73,7 +72,7 @@ namespace MapPackLoader
                 Dictionary<string, object> metadataJsonDict = MiniJSON.Json.Deserialize(metadataJsonText) as Dictionary<string, object>;
                 string mapName = metadataJsonDict["MapName"].ToString();
                 uint mapVersion = Convert.ToUInt32(metadataJsonDict["MapVersion"]);
-                packMaps.Add(mapName, new ZippedMap(mapName, mapVersion, mapZip));
+                packMaps.Add(mapName, new ZippedMap(mapName, mapVersion, mapZip, mapPackZip.Entries[i].Name));
             }
 
 
@@ -107,7 +106,8 @@ namespace MapPackLoader
                     {
                         mapZip.Dispose();
                         MoveMapToNewFolder(mapsFolderPath, currentFilePath);
-                        packMaps[mapName].zip.ExtractToDirectory(mapsFolderPath);
+                        ExtractMapZipFromMainZip(mapsFolderPath, mapPackZip, packMaps[mapName].mapFileName);
+                        //packMaps[mapName].zip.ExtractToDirectory(mapsFolderPath);
                     }
                     packMaps[mapName].zip.Dispose();
                     packMaps.Remove(mapName);
@@ -122,7 +122,10 @@ namespace MapPackLoader
             // ok so now all outdated maps should be extracted and any maps not in the pack should have been moved. now we just need to extract any remaining maps in the pack.
             foreach (ZippedMap packMap in packMaps.Values)
             {
-                packMap.zip.ExtractToDirectory(mapsFolderPath);
+                //string mapPath = Path.Combine(mapsFolderPath, packMap.mapFileName);
+                // I can't copy a zip without extracting it or read its raw bytes. i kinda understand why this is a thing but it's still annoying.
+                //mapPackZip.GetEntry(packMap.mapFileName).ExtractToFile(mapPath);
+                ExtractMapZipFromMainZip(mapsFolderPath, mapPackZip, packMap.mapFileName);
                 packMap.zip.Dispose();
             }
             
@@ -136,6 +139,12 @@ namespace MapPackLoader
             // if there's a mismatch, move the old map into a separate folder and paste the zip's version of the map into the folder.
             // - check for a *mismatch*, NOT for the version specifically being higher.
             // otherwise, if they do match, then leave the file as is.
+        }
+
+        public void ExtractMapZipFromMainZip(string mapsFolderPath, ZipArchive mapPackZip, string mapFileName)
+        {
+            string mapPath = Path.Combine(mapsFolderPath, mapFileName);
+            mapPackZip.GetEntry(mapFileName).ExtractToFile(mapPath);
         }
 
         public void MoveMapToNewFolder(string mapsFolder, string mapPath)
@@ -171,15 +180,17 @@ namespace MapPackLoader
 
     public struct ZippedMap
     {
-        public string name;
+        public string mapName;
+        public string mapFileName;
         public uint version;
         public ZipArchive zip;
 
-        public ZippedMap(string name, uint version, ZipArchive zip)
+        public ZippedMap(string mapName, uint version, ZipArchive zip, string mapFileName)
         {
-            this.name = name;
+            this.mapName = mapName;
             this.version = version;
             this.zip = zip;
+            this.mapFileName = mapFileName;
         }
         //public ZippedMap(int ID, uint version, /*ZipArchive zip, */string path)
         /*{
