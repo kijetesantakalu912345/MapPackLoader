@@ -17,19 +17,10 @@ namespace MapPackLoader
         public static string startTimeString = DateTime.Now.ToString("yyyy-MMM-dd hhtt ss.fff");
         public void Awake()
         {
-            string pluginsFolder = Path.Combine(Directory.GetCurrentDirectory(), "BepInEx/Plugins");
-            Logger.LogInfo(pluginsFolder);
             // Plugin startup logic
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
             using ZipArchive mapPackZip = ZipFile.OpenRead(Path.Combine(Paths.PluginPath, "mappack.zip"));
-            string mapsFolderPath = "";
-            List<string> mapLoaderDLLPath = RecursivelySearchDirectoryForFile(pluginsFolder, "MapMaker.dll");
-            if (mapLoaderDLLPath.Count != 1) // if we didn't find anything or found multiple copies of the DLL
-            {
-                throw new Exception("Found " + mapLoaderDLLPath.Count.ToString() + " copies of mapmaker in the plugins folder. Make sure you have exactly 1 installed."
-                    + " Map pack not extracted.");
-            }
-            mapsFolderPath = Path.Combine(mapLoaderDLLPath[0], "Maps");
+            string mapsFolderPath = Path.Combine(Paths.PluginPath, "Maps");
             Logger.LogInfo("maps folder: " + mapsFolderPath);
 
             if (!Directory.Exists(mapsFolderPath)) { Directory.CreateDirectory(mapsFolderPath); }
@@ -130,25 +121,6 @@ namespace MapPackLoader
             }
             Logger.LogInfo(Path.Combine(dirToMoveTo + "/" + Path.GetFileName(mapPath)));
             File.Move(mapPath, Path.Combine(dirToMoveTo + "/" + Path.GetFileName(mapPath)));
-        }
-
-        public static List<string> RecursivelySearchDirectoryForFile(string searchPath, string containedFileName)
-        {
-            List<string> foundFiles = new List<string>();
-            string[] filesInDir = Directory.GetFiles(searchPath);
-            for (int i = 0; i < filesInDir.Count(); i++)
-            {
-                if (Path.GetFileName(filesInDir[i]).Contains(containedFileName))
-                {
-                    foundFiles.Add(Path.GetDirectoryName(filesInDir[i]));
-                }
-            }
-            string[] directories = Directory.GetDirectories(searchPath);
-            for (int i = 0; i < directories.Count(); i++)
-            {
-                foundFiles.AddRange(RecursivelySearchDirectoryForFile(directories[i], containedFileName));
-            }
-            return foundFiles;
         }
     }
 
