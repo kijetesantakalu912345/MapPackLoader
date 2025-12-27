@@ -10,3 +10,5 @@ This mod was originally made for the bopl battle 2 tournament server, but anybod
 3. Put `mappack.zip` in `/Bopl Battle/BepInEx/Plugins/`.
 
 To change the list of maps, update the mod pack with an updated `mappack.zip` and Map Pack Loader will automatically update the maps folder the next time the game is run.
+
+https://github.com/kijetesantakalu912345/MapPackLoader
