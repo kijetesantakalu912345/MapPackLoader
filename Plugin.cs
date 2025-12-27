@@ -14,7 +14,6 @@ namespace MapPackLoader
     [BepInPlugin("com.kijetesantakalu912345.MapPackLoader", PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     public class Plugin : BaseUnityPlugin
     {
-        //private readonly Harmony harmony = new Harmony("com.kijetesantakalu.MapPackLoader");
         public static string startTimeString = DateTime.Now.ToString("yyyy-MMM-dd hhtt ss.fff");
         public void Awake()
         {
@@ -25,7 +24,6 @@ namespace MapPackLoader
             using ZipArchive mapPackZip = ZipFile.OpenRead(Path.Combine(Paths.PluginPath, "mappack.zip"));
             string mapsFolderPath = "";
             List<string> mapLoaderDLLPath = RecursivelySearchDirectoryForFile(pluginsFolder, "MapMaker.dll");
-            //Directory.GetFiles(pluginsFolder, "MapMaker.dll", SearchOption.AllDirectories);
             if (mapLoaderDLLPath.Count != 1) // if we didn't find anything or found multiple copies of the DLL
             {
                 throw new Exception("Found " + mapLoaderDLLPath.Count.ToString() + " copies of mapmaker in the plugins folder. Make sure you have exactly 1 installed."
@@ -41,22 +39,14 @@ namespace MapPackLoader
                 mapPackZip.ExtractToDirectory(mapsFolderPath);
                 return;
             }
-            // maybe there should be a metadata file like a json or something for this but im trying to keep this as simple as possible for the user and im not making a UI for
-            // creating map packs. i just want map packs to be a zip of maps that are pasted into the maps folder if needed.
+            // maybe there could be a metadata file like a json or something for this but im trying to keep this as simple as possible for the user and im not making a UI for
+            // creating map packs. i just want map packs to be a zip of maps that are pasted into the maps folder as needed.
             CheckAndUpdateOldMaps(mapPackZip, mapsFolderPath);
         }
 
         public void CheckAndUpdateOldMaps(ZipArchive mapPackZip, string mapsFolderPath)
         {
-            /*List<int> packMapIDs = new List<int>(); 
-            List<uint> packMapVersions = new List<uint>();
-            List<int> folderMapIDs = new List<int>();
-            List<uint> folderMapVersions = new List<uint>();*/
-
             Dictionary<string, ZippedMap> packMaps = new Dictionary<string, ZippedMap>(); // Dictionary<mapID, ZippedMap>
-            //Dictionary<int, ZippedMap> validFolderMaps = new Dictionary<int, ZippedMap>(); // Dictionary<mapID, ZippedMap>
-            //List<string> pathsOfFolderMapsToMove = new List<string>();
-
 
             for (int i = 0; i < mapPackZip.Entries.Count; i++)
             {
@@ -76,7 +66,6 @@ namespace MapPackLoader
             }
 
 
-            // this feels kinda spaghetti.
             for (int i = 0; i < Directory.GetFiles(mapsFolderPath).Length; i++)
             {
                 string currentFilePath = Directory.GetFiles(mapsFolderPath)[i];
@@ -107,7 +96,6 @@ namespace MapPackLoader
                         mapZip.Dispose();
                         MoveMapToNewFolder(mapsFolderPath, currentFilePath);
                         ExtractMapZipFromMainZip(mapsFolderPath, mapPackZip, packMaps[mapName].mapFileName);
-                        //packMaps[mapName].zip.ExtractToDirectory(mapsFolderPath);
                     }
                     packMaps[mapName].zip.Dispose();
                     packMaps.Remove(mapName);
@@ -122,23 +110,9 @@ namespace MapPackLoader
             // ok so now all outdated maps should be extracted and any maps not in the pack should have been moved. now we just need to extract any remaining maps in the pack.
             foreach (ZippedMap packMap in packMaps.Values)
             {
-                //string mapPath = Path.Combine(mapsFolderPath, packMap.mapFileName);
-                // I can't copy a zip without extracting it or read its raw bytes. i kinda understand why this is a thing but it's still annoying.
-                //mapPackZip.GetEntry(packMap.mapFileName).ExtractToFile(mapPath);
                 ExtractMapZipFromMainZip(mapsFolderPath, mapPackZip, packMap.mapFileName);
                 packMap.zip.Dispose();
             }
-            
-
-            // get all map "UU"IDs
-            // compare all map "UU"IDs
-            // move maps that don't exist in the zip to another folder, probably just in a separate folder that's one level up from the maps folder?
-            // - I could also delete them but deleting them feels sketchy, espeically because there'll be no warning. "oops! I hope that wasn't the only copy of the map file on
-            // your computer! because the map pack mod just deleted everything in the maps folder without warning before pasting in the maps from the map pack zip."
-            // for maps with corosponding "UU"IDs, check if the map versions match.
-            // if there's a mismatch, move the old map into a separate folder and paste the zip's version of the map into the folder.
-            // - check for a *mismatch*, NOT for the version specifically being higher.
-            // otherwise, if they do match, then leave the file as is.
         }
 
         public void ExtractMapZipFromMainZip(string mapsFolderPath, ZipArchive mapPackZip, string mapFileName)
@@ -192,12 +166,5 @@ namespace MapPackLoader
             this.zip = zip;
             this.mapFileName = mapFileName;
         }
-        //public ZippedMap(int ID, uint version, /*ZipArchive zip, */string path)
-        /*{
-            this.ID = ID;
-            this.version = version;
-            //this.zip = zip;
-            this.path = path;
-        }*/
     }
 }
