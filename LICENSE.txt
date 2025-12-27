@@ -1,4 +1,4 @@
-license for this mod:
+license for the MapPackLoader mod:
 MIT License
 
 Copyright (c) 2025 !kijetesantakalu
