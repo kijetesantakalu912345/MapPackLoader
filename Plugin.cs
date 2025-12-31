@@ -19,7 +19,7 @@ namespace MapPackLoader
         {
             // Plugin startup logic
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
-            using ZipArchive mapPackZip = ZipFile.OpenRead(Path.Combine(Paths.PluginPath, "mappack.zip"));
+            using ZipArchive mapPackZip = ZipFile.OpenRead(Path.Combine(Paths.ConfigPath, "mappack.zip"));
             string mapsFolderPath = Path.Combine(Paths.PluginPath, "Maps");
             Logger.LogInfo("maps folder: " + mapsFolderPath);
 

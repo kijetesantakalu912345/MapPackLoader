@@ -1,6 +1,6 @@
 {
     "name": "MapPackLoader",
-    "version_number": "1.0.0",
+    "version_number": "1.0.1",
     "website_url": "https://github.com/kijetesantakalu912345/MapPackLoader",
     "description": "Mod for automatically installing a list of maps from a mappack.zip file",
     "dependencies": []

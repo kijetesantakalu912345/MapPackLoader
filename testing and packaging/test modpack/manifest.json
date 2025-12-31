@@ -1,0 +1,7 @@
+{
+    "name": "TESTModPackMapPackLoader",
+    "version_number": "1.0.1",
+    "website_url": "",
+    "description": "testing modpack for map pack loader",
+    "dependencies": ["MapMakerTeam-Map_Loader-1.1.10", "Jo912345-FixedConfig-1.0.0", "kijetesantakalu-MapPackLoader-1.0.1"]
+}
