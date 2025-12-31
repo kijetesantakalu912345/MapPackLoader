@@ -19,21 +19,65 @@ namespace MapPackLoader
         {
             // Plugin startup logic
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
-            using ZipArchive mapPackZip = ZipFile.OpenRead(Path.Combine(Paths.ConfigPath, "mappack.zip"));
+            // im just gonna recursively search for mappack.zip from bepinex/plugins. not ideal but it looks like i need to place it there to upload this mod to thunderstore and
+            // mod managers will put every mod in their own folder for bepinex to load. so when custom a mappack.zip file is included with mods packs it be at
+            // `bepinex/plugins/modpack-name/mappack.zip`.
+            List<string> mapPackZipPaths = RecursivelySearchDirectoryForFile(Paths.PluginPath, "mappack.zip");
+
+            if (mapPackZipPaths.Count == 0)
+            {
+                Logger.LogError("No mappack.zip found! map pack loader will not load any map pack.");
+                return;
+            }
+            if (mapPackZipPaths.Count > 1)
+            {
+                Logger.LogWarning("multiple `mappack.zip`s found! The mappack.zip at `" + mapPackZipPaths[0] + "` will be used. paths of all map packs:");
+                string paths = "";
+                foreach (string zipPath in mapPackZipPaths)
+                {
+                    paths += zipPath + "\n";
+                }
+                Logger.LogWarning(paths);
+            }
+
+            string mapPackZipPath = mapPackZipPaths[0];
+
+            using ZipArchive mapPackZip = ZipFile.OpenRead(mapPackZipPath);
             string mapsFolderPath = Path.Combine(Paths.PluginPath, "Maps");
             Logger.LogInfo("maps folder: " + mapsFolderPath);
 
             if (!Directory.Exists(mapsFolderPath)) { Directory.CreateDirectory(mapsFolderPath); }
 
-            if (Directory.GetFiles(mapsFolderPath).Length == 0) // empty maps folder, we can just freely extract the mappack zip into it
+            // for security reasons we're not doing this! it's less efficient but this would allow somebody to sneak custom DLLs from mappack.zip if the maps folder path was empty.
+            /*if (Directory.GetFiles(mapsFolderPath).Length == 0) // empty maps folder, we can just freely extract the mappack zip into it
             {
                 mapPackZip.ExtractToDirectory(mapsFolderPath);
                 return;
-            }
+            }*/
             // maybe there could be a metadata file like a json or something for this but im trying to keep this as simple as possible for the user and im not making a UI for
             // creating map packs. i just want map packs to be a zip of maps that are pasted into the maps folder as needed.
             CheckAndUpdateOldMaps(mapPackZip, mapsFolderPath);
         }
+
+        public static List<string> RecursivelySearchDirectoryForFile(string searchPath, string containedFileName)
+        {
+            List<string> foundFiles = new List<string>();
+            string[] filesInDir = Directory.GetFiles(searchPath);
+            for (int i = 0; i < filesInDir.Count(); i++)
+            {
+                if (Path.GetFileName(filesInDir[i]).Contains(containedFileName))
+                {
+                    foundFiles.Add(filesInDir[i]);
+                }
+            }
+            string[] directories = Directory.GetDirectories(searchPath);
+            for (int i = 0; i < directories.Count(); i++)
+            {
+                foundFiles.AddRange(RecursivelySearchDirectoryForFile(directories[i], containedFileName));
+            }
+            return foundFiles;
+        }
+
 
         public void CheckAndUpdateOldMaps(ZipArchive mapPackZip, string mapsFolderPath)
         {
